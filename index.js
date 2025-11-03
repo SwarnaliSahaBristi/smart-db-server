@@ -39,7 +39,9 @@ async function run() {
       const query = { email: email };
       const existingUser = await usersCollection.findOne(query);
       if (existingUser) {
-        res.send({message: "user already exist.Do not need to insert again."});
+        res.send({
+          message: "user already exist.Do not need to insert again.",
+        });
       } else {
         const result = await usersCollection.insertOne(newUser);
         res.send(result);
@@ -53,16 +55,22 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/latest-products", async (req,res)=>{
-       const cursor = productsCollection.find().sort({created_at: -1}).limit(6);
-       const result = await cursor.toArray();
-       res.send(result)
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productsCollection
+        .find()
+        .sort({ created_at: -1 })
+        .limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const result = await productsCollection.findOne(query);
+      if (!result) {
+        return res.status(404).send({ message: "Product not found" });
+      }
       res.send(result);
     });
 
@@ -76,7 +84,7 @@ async function run() {
     app.patch("/products/:id", async (req, res) => {
       const id = req.params.id;
       const updatedProduct = req.body;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const update = {
         $set: {
           name: updatedProduct.name,
@@ -89,7 +97,7 @@ async function run() {
 
     app.delete("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const result = await productsCollection.deleteOne(query);
       res.send(result);
     });
