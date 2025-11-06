@@ -3,7 +3,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 require("dotenv").config();
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const port = process.env.port || 3000;
 
 const admin = require("firebase-admin");
@@ -11,61 +11,58 @@ const admin = require("firebase-admin");
 const serviceAccount = require("./smart-deals-16691-firebase-adminsdk-fbsvc-880432f55f.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
-
 
 //middleware
 app.use(cors());
 app.use(express.json());
 
-const logger = (req,res,next) =>{
-  console.log('log in information');
+const logger = (req, res, next) => {
+  console.log("log in information");
   next();
-}
+};
 
-const verifyFirebasToken = async(req,res,next) =>{
-  console.log('in the verify middleware',req.headers.authorization);
-  if(!req.headers.authorization){
+const verifyFirebasToken = async (req, res, next) => {
+  console.log("in the verify middleware", req.headers.authorization);
+  if (!req.headers.authorization) {
     //do not allow to go
-    return res.status(401).send({message: 'unauthorized access'})
+    return res.status(401).send({ message: "unauthorized access" });
   }
-  const token = req.headers.authorization.split(' ')[1];
-  if(!token){
-    return res.status(401).send({message: 'unauthorized access'})
+  const token = req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
   }
-  try{
+  try {
     const userInfo = await admin.auth().verifyIdToken(token);
     req.token_email = userInfo.email;
-    console.log('after token validation', userInfo)
+    console.log("after token validation", userInfo);
     next();
+  } catch {
+    console.log("invalid token");
+    return res.status(401).send({ message: "unauthorized access" });
   }
-  catch{
-    console.log('invalid token')
-    return res.status(401).send({message: 'unauthorized access'})
-  } 
-}
+};
 
-const verifyJWTToken = (req,res,next) =>{
+const verifyJWTToken = (req, res, next) => {
   // console.log('in middleware',req.headers)
-  const authorization= req.headers.authorization;
-  if(!authorization){
-    return res.status(401).send({message: 'unauthorized access'})
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ message: "unauthorized access" });
   }
-  const token = authorization.split(' ')[1];
-  if(!token){
-    return res.status(401).send({message: 'unauthorized access'})
+  const token = authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
   }
-  jwt.verify(token, process.env.JWT_SECRET,(err, decoded)=>{
-  if (err) {
-    return res.status(401).send({message: 'unauthorized access'})
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
     }
-    console.log('after decoded', decoded)
-    req.token_email = decoded.email
+    console.log("after decoded", decoded);
+    req.token_email = decoded.email;
     next();
-});
-  
-}
+  });
+};
 
 const uri = process.env.DV_URI;
 
@@ -91,11 +88,13 @@ async function run() {
     const usersCollection = db.collection("users");
 
     //jwt related api
-    app.post("/getToken", async(req,res)=>{
+    app.post("/getToken", async (req, res) => {
       const loggedUser = req.body;
-      const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '1h'});
-      res.send({token : token})
-    })
+      const token = jwt.sign(loggedUser, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token: token });
+    });
 
     //USERS API
     app.post("/users", async (req, res) => {
@@ -139,9 +138,10 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/products", async (req, res) => {
+    app.post("/products", verifyFirebasToken, async (req, res) => {
+      console.log("headers in the post", req.headers);
       const newProduct = req.body;
-      console.log(newProduct);
+      // console.log(newProduct);
       const result = await productsCollection.insertOne(newProduct);
       res.send(result);
     });
@@ -167,24 +167,23 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/bids", verifyJWTToken, async(req,res)=>{
+    app.get("/bids", verifyFirebasToken, async (req, res) => {
       // console.log('headers', req.headers)
       const email = req.query.email;
       const query = {};
-      if(email){
+      if (email) {
         query.buyer_email = email;
       }
 
       //verify user have access to see this data
-      if(email !== req.token_email){
-        return res.status(403).send({message: 'Forbidden Access'})
+      if (email !== req.token_email) {
+        return res.status(403).send({ message: "Forbidden Access" });
       }
 
-
-      const cursor = bidsCollection.find(query)
-      const result = await cursor.toArray()
-      res.send(result)
-    })
+      const cursor = bidsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     // bids related api with firebase token verify
     // app.get("/bids",logger,verifyFirebasToken, async (req, res) => {
@@ -210,7 +209,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/products/bids/:productId",verifyFirebasToken, async (req, res) => {
+    app.get("/products/bids/:productId", verifyJWTToken, async (req, res) => {
       const productId = req.params.productId;
       const query = { product: productId };
       const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
