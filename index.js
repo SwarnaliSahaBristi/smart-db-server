@@ -9,7 +9,7 @@ const port = process.env.port || 3000;
 const admin = require("firebase-admin");
 
 // index.js
-const decoded = Buffer.from(process.env.FIREBASE_SERVICE-KEY, "base64").toString("utf8");
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
 const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
